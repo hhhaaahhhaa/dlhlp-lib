@@ -13,7 +13,7 @@ import time
 
 from UnsupSeg import ModelTag, load_model_from_tag
 
-from . import audio
+from dlhlp_lib import audio
 
 
 SILENCE = ["sil", "sp", "spn"]
