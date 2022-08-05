@@ -257,12 +257,12 @@ def segment2duration_mp(dataset, queries, featname, target_featname, inv_frame_p
 
 def duration_avg_pitch_and_energy(dataset, query, featname):
     try:
-        duration_feat = getattr(dataset, featname)
-        pitch_feat = getattr(dataset, "interpolate_pitch")
-        energy_feat = getattr(dataset, "energy")
+        duration_feat = dataset.get_feature(featname)
+        pitch_feat = dataset.get_feature("interpolate_pitch")
+        energy_feat = dataset.get_feature("energy")
 
-        avg_pitch_feat = getattr(dataset, f"{featname}_avg_pitch")
-        avg_energy_feat = getattr(dataset, f"{featname}_avg_energy")
+        avg_pitch_feat = dataset.get_feature(f"{featname}_avg_pitch")
+        avg_energy_feat = dataset.get_feature(f"{featname}_avg_energy")
 
         durations = duration_feat.read_from_query(query)
         pitch = pitch_feat.read_from_query(query)
@@ -289,9 +289,9 @@ def duration_avg_pitch_and_energy_mp(dataset, queries, featname,
     tasks = list(zip([dataset] * n, queries, [featname] * n))
 
     if n_workers == 1:
-        duration_feat = getattr(dataset, featname)
-        pitch_feat = getattr(dataset, "interpolate_pitch")
-        energy_feat = getattr(dataset, "energy")
+        duration_feat = dataset.get_feature(featname)
+        pitch_feat = dataset.get_feature("interpolate_pitch")
+        energy_feat = dataset.get_feature("energy")
         duration_feat.read_all(refresh=refresh)
         pitch_feat.read_all(refresh=refresh)
         energy_feat.read_all(refresh=refresh)
