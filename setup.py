@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name='dlhlp-lib',               
-    version='0.0.0',         
+    version='0.1.0',
     packages=['dlhlp_lib'],   
     include_package_data=True,  
     exclude_package_date={'':['.gitignore']},
