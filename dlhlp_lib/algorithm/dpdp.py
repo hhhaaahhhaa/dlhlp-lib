@@ -13,33 +13,7 @@ from dlhlp_lib.s3prl import S3PRLExtractor
 #   Towards unsupervised phone and word segmentation using self-supervised vector-quantized neural networks
 #   (https://arxiv.org/abs/2012.07551, INTERSPEECH 2021)
 # Author: Yuan Tseng (https://github.com/roger-tseng)
-def segment(reps, kmeans_model, pen, lambd=35):
-    '''
-    Inputs:
-    reps        :   Representation sequence from self supervised model
-    kmeans_model:   Pretrained scikit-learn MiniBatchKMeans model
-    pen         :   penalty function penalizing segment length (longer segment, higher penalty)
-    lambd       :   penalty weight (larger weight, longer segment)
-
-    Outputs:
-    boundaries  :   List of tokens at right boundaries of segments 
-                    (assuming token sequence starts from 1 to Tth token)
-    label_token :   List of token labels for segments
-
-    e.g. :
-
-    If  tokens = [34, 55, 62, 83, 42]
-        boundaries = [3, 5]
-        label_token = [55, 83]
-
-    then segmentation is :
-    | 34 55 62 | 83 42 |
-    |    55    |   83  |
-
-    '''
-    
-    # array of distances to closest cluster center, size: token sequence len * num of clusters
-    distance_array = np.square( kmeans_model.transform(reps) )
+def segment(reps, distance_array, pen, lambd=35):
     alphas = [[0, None]]
 
     # Perform dynamic-programming-based segmentation
@@ -76,6 +50,36 @@ def segment(reps, kmeans_model, pen, lambd=35):
     label_tokens.reverse()
 
     return boundaries, label_tokens
+
+
+def segment_by_kmeans_model(reps, kmeans_model, pen, lambd=35):
+    '''
+    Inputs:
+    reps        :   Representation sequence from self supervised model
+    kmeans_model:   Pretrained scikit-learn MiniBatchKMeans model
+    pen         :   penalty function penalizing segment length (longer segment, higher penalty)
+    lambd       :   penalty weight (larger weight, longer segment)
+
+    Outputs:
+    boundaries  :   List of tokens at right boundaries of segments 
+                    (assuming token sequence starts from 1 to Tth token)
+    label_token :   List of token labels for segments
+
+    e.g. :
+
+    If  tokens = [34, 55, 62, 83, 42]
+        boundaries = [3, 5]
+        label_token = [55, 83]
+
+    then segmentation is :
+    | 34 55 62 | 83 42 |
+    |    55    |   83  |
+
+    '''
+    
+    # array of distances to closest cluster center, size: token sequence len * num of clusters
+    distance_array = np.square( kmeans_model.transform(reps) )
+    return segment(reps, distance_array, pen, lambd=lambd)
 
 
 def calculate_ssl_centroids(extractor: S3PRLExtractor, n_clusters: int, wav_paths: List[str], layer: int, batch_size=16, norm=False) -> KMeans:
@@ -168,11 +172,44 @@ class DPDPSSLUnit(object):
             self.log(f"tokens: {tokens}")
             self.log(f"len(tokens): {len(tokens)}")
 
-        boundaries, label_tokens = segment(sliced_repr, kmeans_model, self._pen, lambd=lambd)
+        boundaries, label_tokens = segment_by_kmeans_model(sliced_repr, kmeans_model, self._pen, lambd=lambd)
         if self.debug:
             self.log(f"boundaries: {boundaries}")
             self.log(f"label_tokens: {label_tokens}")
             self.log(f"Num of segments = {len(label_tokens)}")
+            print()
+
+        foramtted_boundaries = []
+        st = 0.0
+        for b in boundaries:
+            foramtted_boundaries.append((st, b * self._extractor._fp / 1000))
+            st = b * self._extractor._fp / 1000
+        
+        return foramtted_boundaries, label_tokens
+
+    def segment_by_dist(self, wav_path: str, lambd=35):
+        repr, n_frame = self._extractor.extract_from_paths([wav_path], norm=self._norm) 
+        repr = self._postnet(repr)
+        sliced_repr = repr[0].detach().cpu()  # L, dim
+        try:
+            assert not torch_exist_nan(sliced_repr)
+        except:
+            self.log("NaN in SSL feature:")
+            self.log(wav_path)
+            raise ValueError
+        
+        sliced_repr = sliced_repr.numpy()
+        if self.debug:
+            tokens = sliced_repr.argmin(axis=1).tolist()
+            self.log(f"tokens: {tokens}")
+            self.log(f"len(tokens): {len(tokens)}")
+
+        boundaries, label_tokens = segment(sliced_repr, sliced_repr, self._pen, lambd=lambd)
+        if self.debug:
+            self.log(f"boundaries: {boundaries}")
+            self.log(f"label_tokens: {label_tokens}")
+            self.log(f"Num of segments = {len(label_tokens)}")
+            print()
 
         foramtted_boundaries = []
         st = 0.0
@@ -204,7 +241,7 @@ class DPDPSSLUnit(object):
                     self.log(f"tokens: {tokens}")
                     self.log(f"len(tokens): {len(tokens)}")
 
-                boundaries, label_tokens = segment(sliced_repr, kmeans_model, self._pen, lambd=lambd)
+                boundaries, label_tokens = segment_by_kmeans_model(sliced_repr, kmeans_model, self._pen, lambd=lambd)
                 if self.debug:
                     self.log(f"boundaries: {boundaries}")
                     self.log(f"label_tokens: {label_tokens}")
