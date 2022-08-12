@@ -40,13 +40,16 @@ class Feature(object):
             with open(cache_path, 'rb') as f:
                 self._data = pickle.load(f)
 
-    def read_filename(self, query) -> str:
-        filenames = self.query_parser.get(query)
+    def read_filename(self, query, raw=False) -> str:
+        filenames = self.read_filenames(query, raw=raw)
         assert len(filenames) == 1
         return filenames[0]
 
-    def read_filenames(self, query) -> List[str]:
-        return self.query_parser.get(query)
+    def read_filenames(self, query, raw=False) -> List[str]:
+        filenames = self.query_parser.get(query)
+        if raw:
+            filenames = [self.filename2rawpath(f) for f in filenames]
+        return filenames
     
     def read_from_query(self, query):
         filename = self.read_filename(query)
@@ -55,13 +58,14 @@ class Feature(object):
     def read_from_filename(self, filename):
         if self._data is not None:
             return self._data[filename]
-        return self.io.readfile(f"{self.root}/{self.name}/{filename}{self.io.extension}")
+        return self.io.readfile(self.filename2rawpath(filename))
     
     def save(self, input, query):
-        filenames = self.query_parser.get(query)
-        assert len(filenames) == 1
-        path = f"{self.root}/{self.name}/{filenames[0]}{self.io.extension}"
+        path = self.read_filename(query, raw=True)
         self.io.savefile(input, path)
 
+    def filename2rawpath(self, filename) -> str:
+        return f"{self.root}/{self.name}/{filename}{self.io.extension}"
+    
     def log(self, msg):
         print(f"[Feature ({self.root}/{self.name})]: ", msg)
