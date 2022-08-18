@@ -1,8 +1,6 @@
 from typing import List
 import abc
 
-from ..Feature import Feature
-
 
 class BaseDataParser(metaclass=abc.ABCMeta):
     def __init__(self, root, *args, **kwargs) -> None:
@@ -13,5 +11,5 @@ class BaseDataParser(metaclass=abc.ABCMeta):
     def _init_structure(self, *args, **kwargs) -> None:
         raise NotImplementedError
 
-    def get_feature(self, query: str) -> Feature:
+    def get_feature(self, query: str):
         raise NotImplementedError
