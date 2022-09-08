@@ -29,6 +29,7 @@ class SegmentationEvaluator(object):
             ref_len, pred_len = len(ref_segment), len(pred_segment)
             
             ref_pos, pred_pos = 0, 0
+            ref_offset, pred_offset = ref_segment[0][0], pred_segment[0][0]  # segment may not start from time 0 due to trimming.
             while 1:
                 if ref_pos == ref_len:
                     fp += pred_len - pred_pos
@@ -36,7 +37,7 @@ class SegmentationEvaluator(object):
                 if pred_pos == pred_len:
                     fn += ref_len - ref_pos
                     break
-                t_ref, t_pred = ref_segment[ref_pos][0], pred_segment[pred_pos][0]
+                t_ref, t_pred = ref_segment[ref_pos][0] - ref_offset, pred_segment[pred_pos][0] - pred_offset
                 if abs(t_ref - t_pred) <= threshold:  # matched!
                     tp += 1
                     ref_pos += 1
@@ -51,7 +52,7 @@ class SegmentationEvaluator(object):
         recall = tp / (tp + fn)
         precision = tp / (tp + fp)
         os = recall / precision - 1
-        r1 = (os ** 2 + recall ** 2) ** 0.5
+        r1 = (os ** 2 + (1 - recall) ** 2) ** 0.5
         r2 =  (recall / precision - recall) / (2 ** 0.5)
         r_val = (2 - r1 - r2) / 2
 

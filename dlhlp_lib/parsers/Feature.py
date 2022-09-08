@@ -3,11 +3,10 @@ from typing import List
 import pickle
 from tqdm import tqdm
 
-from .Interfaces.BaseIOObject import BaseIOObject
-from .Interfaces.BaseQueryParser import BaseQueryParser
+from .Interfaces import BaseFeature, BaseIOObject, BaseQueryParser
 
 
-class Feature(object):
+class Feature(BaseFeature):
     """
     Template class for single feature.
     """
