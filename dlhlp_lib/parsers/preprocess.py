@@ -103,6 +103,7 @@ def trim_wav_by_mfa_segment_mp(dataset, queries, sr, n_workers=1, chunksize=256,
         segment_feat.read_all(refresh=refresh)
         for i in tqdm(range(n)):
             trim_wav_by_mfa_segment(dataset, queries[i], sr)
+        return
     
     with Pool(processes=n_workers) as pool:
         for i in tqdm(pool.imap(imap_trim_wav_by_mfa_segment, tasks, chunksize=chunksize), total=n):
@@ -167,6 +168,7 @@ def wav_trim_22050_to_mel_energy_pitch_mp(dataset, queries, n_workers=4, chunksi
     if n_workers == 1:
         for i in tqdm(range(n)):
             wav_trim_22050_to_mel_energy_pitch(dataset, queries[i])
+        return
     
     with Pool(processes=n_workers) as pool:
         for i in tqdm(pool.imap(imap_wav_trim_22050_to_mel_energy_pitch, tasks, chunksize=chunksize), total=n):
@@ -212,6 +214,7 @@ def extract_spk_ref_mel_slices_from_wav_mp(dataset, queries, sr=16000, n_workers
     if n_workers == 1:
         for i in tqdm(range(n)):
             extract_spk_ref_mel_slices_from_wav(dataset, queries[i], sr)
+        return
     
     with Pool(processes=n_workers) as pool:
         for i in tqdm(pool.imap(imap_extract_spk_ref_mel_slices_from_wav, tasks, chunksize=chunksize), total=n):
@@ -249,6 +252,7 @@ def segment2duration_mp(dataset, queries, featname, target_featname, inv_frame_p
         segment_feat.read_all(refresh=refresh)
         for i in tqdm(range(n)):
             segment2duration(dataset, queries[i], featname, target_featname, inv_frame_period)
+        return
     
     with Pool(processes=n_workers) as pool:
         for i in tqdm(pool.imap(imap_segment2duration, tasks, chunksize=chunksize), total=n):
@@ -297,6 +301,7 @@ def duration_avg_pitch_and_energy_mp(dataset, queries, featname,
         energy_feat.read_all(refresh=refresh)
         for i in tqdm(range(n)):
             duration_avg_pitch_and_energy(dataset, queries[i], featname)
+        return
     
     with Pool(processes=n_workers) as pool:
         for i in tqdm(pool.imap(imap_duration_avg_pitch_and_energy, tasks, chunksize=chunksize), total=n):

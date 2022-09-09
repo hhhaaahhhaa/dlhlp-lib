@@ -49,7 +49,7 @@ class S3PRLExtractor(pl.LightningModule):
         for wav_path in wav_paths:
             if wav_path[-4:] == ".wav":  # Support .wav or .npy input format
                 wav, sr = librosa.load(wav_path, sr=None)
-                assert sr == Constants.S3PRL_SAMPLE_RATE, f"Sample rate need to be {Constants.S3PRL_SAMPLE_RATE}."
+                assert sr == Constants.S3PRL_SAMPLE_RATE, f"Sample rate need to be {Constants.S3PRL_SAMPLE_RATE} (get {sr})."
             elif wav_path[-4:] == ".npy":
                 wav = np.load(wav_path)
             else:
