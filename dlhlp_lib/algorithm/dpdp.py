@@ -49,6 +49,21 @@ def segment(reps, distance_array, pen, lambd=35):
     boundaries.reverse()
     label_tokens.reverse()
 
+    if lambd == 0:  # merge repeat tokens (when lambd=0 cosecutive tokens may repeat)
+        cur_token = None
+        new_boundaries, new_label_tokens = [], []
+        for i in range(len(boundaries)):
+            if i == 0:
+                cur_token = label_tokens[0]
+            if i == len(boundaries) - 1:
+                new_boundaries.append(boundaries[i])
+                new_label_tokens.append(cur_token)
+                return new_boundaries, new_label_tokens
+            if label_tokens[i + 1] != cur_token:
+                new_boundaries.append(boundaries[i])
+                new_label_tokens.append(cur_token)
+                cur_token = label_tokens[i + 1]
+            
     return boundaries, label_tokens
 
 

@@ -1,8 +1,8 @@
 import numpy as np
-import pickle
 from tqdm import tqdm
-from typing import Dict
+from typing import Dict, Union
 import jiwer
+from jiwer.transformations import wer_default
 
 from dlhlp_lib.parsers.Interfaces import BaseDataParser
 
@@ -38,39 +38,44 @@ class FERCalculator(object):
     def exec(self,
             data_parser: BaseDataParser, 
             queries,
-            phoneme_featname1: str, segment_featname1: str, 
-            phoneme_featname2: str, segment_featname2: str,
-            symbol2unify1: Dict, symbol2unify2: Dict,
+            ref_phoneme_featname: str, ref_segment_featname: str,
+            pred_phoneme_featname: str, pred_segment_featname: str,
+            symbol_ref2unify: Dict, symbol_pred2unify: Dict,
             fp: float
         ) -> float:
-        phn_feat1 = data_parser.get_feature(phoneme_featname1)
-        seg_feat1 = data_parser.get_feature(segment_featname1)
-        phn_feat2 = data_parser.get_feature(phoneme_featname2)
-        seg_feat2 = data_parser.get_feature(segment_featname2)
+        ref_phn_feat = data_parser.get_feature(ref_phoneme_featname)
+        ref_seg_feat = data_parser.get_feature(ref_segment_featname)
+        pred_phn_feat = data_parser.get_feature(pred_phoneme_featname)
+        pred_seg_feat = data_parser.get_feature(pred_segment_featname)
 
         n_frames, correct = 0, 0
-        n_seg1, n_seg2 = 0, 0
+        ref_n_seg, pred_n_seg = 0, 0
         for query in tqdm(queries):
-            phoneme1 = phn_feat1.read_from_query(query).strip().split(" ")
-            segment1 = seg_feat1.read_from_query(query)
-            phoneme2 = phn_feat2.read_from_query(query).strip().split(" ")
-            segment2 = seg_feat2.read_from_query(query)
+            ref_phoneme = ref_phn_feat.read_from_query(query).strip().split(" ")
+            ref_segment = ref_seg_feat.read_from_query(query)
+            pred_phoneme = pred_phn_feat.read_from_query(query).strip().split(" ")
+            pred_segment = pred_seg_feat.read_from_query(query)
 
-            n_seg1 += len(phoneme1)
-            n_seg2 += len(phoneme2)
+            ref_n_seg += len(ref_phoneme)
+            pred_n_seg += len(pred_phoneme)
 
-            duration1, duration2 = segment2duration(segment1, fp), segment2duration(segment2, fp)
-            seq1, seq2 = expand(phoneme1, duration1), expand(phoneme2, duration2)
-            total_len = min(sum(duration1), sum(duration2))
+            ref_duration, pred_duration = segment2duration(ref_segment, fp), segment2duration(pred_segment, fp)
+            ref_seq, pred_seq = expand(ref_phoneme, ref_duration), expand(pred_phoneme, pred_duration)
+            if len(pred_seq) >= len(ref_seq):
+                pred_seq = pred_seq[:len(ref_seq)]
+            else:
+                padding = [pred_seq[-1]] * (len(ref_seq) - len(pred_seq))
+                pred_seq.extend(padding)
+            assert len(pred_seq) == len(ref_seq)
 
-            for (x1, x2) in zip(seq1, seq2):
-                if symbol2unify1[x1] == symbol2unify2[x2]:
+            for (x1, x2) in zip(ref_seq, pred_seq):
+                if symbol_ref2unify[x1] == symbol_pred2unify[x2]:
                     correct += 1
-            n_frames += total_len
+            n_frames += len(ref_seq)
         facc = correct / n_frames
         fer = 1 - facc
 
-        print(f"Segments: {n_seg1}, {n_seg2}.")
+        print(f"Segments: {ref_n_seg}, {pred_n_seg}.")
         print(f"Frame error rate: 1 - {correct}/{n_frames} = {fer * 100:.2f}%")
         return fer
 
@@ -87,12 +92,14 @@ class PERCalculator(object):
             data_parser: BaseDataParser, 
             queries,
             ref_phoneme_featname: str, pred_phoneme_featname: str,
-            symbol_ref2unify: Dict, symbol_pred2unify: Dict
-        ) -> float:
+            symbol_ref2unify: Dict, symbol_pred2unify: Dict,
+            return_dict: bool=False
+        ) -> Union[float, Dict]:
         ref_phn_feat = data_parser.get_feature(ref_phoneme_featname)
         pred_phn_feat = data_parser.get_feature(pred_phoneme_featname)
 
         wer_list = []
+        substitutions, insertions, deletions = 0, 0, 0
         for query in tqdm(queries):
             ref_phoneme = ref_phn_feat.read_from_query(query).strip().split(" ")
             pred_phoneme = pred_phn_feat.read_from_query(query).strip().split(" ")
@@ -100,8 +107,23 @@ class PERCalculator(object):
             ref_sentence = " ".join([symbol_ref2unify[p] for p in ref_phoneme])
             pred_sentence = " ".join([symbol_pred2unify[p] for p in pred_phoneme])
 
-            wer_list.append(jiwer.wer(ref_sentence, pred_sentence))
+            if return_dict:
+                measures = jiwer.compute_measures(ref_sentence, pred_sentence, wer_default, wer_default, return_dict=return_dict)
+                wer_list.append(measures['wer'])
+                substitutions += measures['substitutions']
+                insertions += measures['insertions']
+                deletions += measures['deletions']
+            else:
+                wer_list.append(measures)
         wer = sum(wer_list) / len(wer_list)
 
         print(f"Word error rate: {wer * 100:.2f}%")
-        return wer
+        if return_dict:
+            return {
+                'wer': wer,
+                'substitutions': substitutions,
+                'insertions': insertions,
+                'deletions': deletions
+            }
+        else:
+            return wer
