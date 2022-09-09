@@ -14,6 +14,7 @@ setuptools.setup(
         'tqdm',
         'resemblyzer',
         'tgt',
-        'pyworld'
+        'pyworld',
+        'jiwer'
     ]
 )
