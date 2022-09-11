@@ -25,7 +25,7 @@ class S3PRLExtractor(pl.LightningModule):
         super().__init__()
         self.name = s3prl_name
         self._model = getattr(hub, s3prl_name)()
-        self._model.eval()
+        self.eval()
 
         self._fp = 20  # Currently all supported ssl models use 20ms window
 
@@ -58,11 +58,7 @@ class S3PRLExtractor(pl.LightningModule):
             wavs.append(torch.from_numpy(wav).float().to(self.device))
             n_frames.append(len(wav) // (Constants.S3PRL_SAMPLE_RATE // 1000 * self._fp))
         
-        with torch.no_grad():
-            representation = self._model(wavs)
-            representation = torch.stack(representation["hidden_states"], dim=2)  # bs, L, layer, dim
-            if norm:
-                representation = torch.nn.functional.normalize(representation, dim=3)
+        representation = self._extract(wavs, norm=norm)
         
         if is_str_input:
             return representation[0], n_frames[0]        
@@ -89,10 +85,20 @@ class S3PRLExtractor(pl.LightningModule):
                 wavs.append(wav.float().to(self.device))
                 n_frames.append(len(wav) // (Constants.S3PRL_SAMPLE_RATE // 1000 * self._fp))
         
-        with torch.no_grad():
+        representation = self._extract(wavs, norm=norm)
+              
+        return representation, n_frames
+
+    def _extract(self, wavs, norm=False):
+        if not self.training:
+            with torch.no_grad():
+                representation = self._model(wavs)
+                representation = torch.stack(representation["hidden_states"], dim=2)  # bs, L, layer, dim
+                if norm:
+                    representation = torch.nn.functional.normalize(representation, dim=3)
+        else:
             representation = self._model(wavs)
             representation = torch.stack(representation["hidden_states"], dim=2)  # bs, L, layer, dim
             if norm:
                 representation = torch.nn.functional.normalize(representation, dim=3)
-              
-        return representation, n_frames
+        return representation
