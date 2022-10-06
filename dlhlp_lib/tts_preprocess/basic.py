@@ -21,9 +21,11 @@ MEL_NN = LogMelSpectrogram(
     n_fft=AUDIO_CONFIG["stft"]["filter_length"],
     win_length=AUDIO_CONFIG["stft"]["win_length"],
     hop_length=AUDIO_CONFIG["stft"]["hop_length"],
-    f_min=AUDIO_CONFIG["mel"]["mel_fmin"],
-    f_max=AUDIO_CONFIG["mel"]["mel_fmax"],
     n_mels=AUDIO_CONFIG["mel"]["n_mel_channels"],
+    pad=(AUDIO_CONFIG["stft"]["filter_length"] - AUDIO_CONFIG["stft"]["hop_length"]) // 2,
+    power=1,
+    norm="slaney",
+    mel_scale="slaney"
 )
 SILENCE = ["sil", "sp", "spn"]
 

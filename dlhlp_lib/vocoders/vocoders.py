@@ -7,9 +7,9 @@ import math
 
 from dlhlp_lib.Constants import MAX_WAV_VALUE
 
-from .. import AUDIO_CONFIG
-from ..stft import TacotronSTFT
-from ..audio_processing import griffin_lim
+from ..audio import AUDIO_CONFIG
+from ..audio.stft import TacotronSTFT
+from ..audio.audio_processing import griffin_lim
 from . import hifigan
 
 
@@ -53,13 +53,15 @@ class MelGAN(BaseVocoder):
         )
         self.vocoder = vocoder.mel2wav
         self.vocoder.eval()
+        self.cpu()
 
     def inverse(self, mel):
         with torch.no_grad():
             return self.vocoder(mel).squeeze(1)
 
     def infer(self, mels, lengths=None, *args, **kwargs):
-        wavs = self.inverse(mels / math.log(10))
+        # wavs = self.inverse(mels / math.log(10))  compatible with stft framework only, deprecated
+        wavs = self.inverse(mels)
         wavs = torch.clip(wavs, max=1, min=-1)
         wavs = (wavs.cpu().numpy() * MAX_WAV_VALUE).astype("int16")
         wavs = [wav for wav in wavs]
@@ -90,7 +92,8 @@ class HifiGAN(BaseVocoder):
             return self.vocoder(mel).squeeze(1)
 
     def infer(self, mels, lengths=None, *args, **kwargs):
-        wavs = self.inverse(mels)
+        # wavs = self.inverse(mels) compatible with stft framework only, deprecated
+        wavs = self.inverse(mels * math.log(10))
         wavs = torch.clip(wavs, max=1, min=-1)
         wavs = (wavs.cpu().numpy() * MAX_WAV_VALUE).astype("int16")
         wavs = [wav for wav in wavs]

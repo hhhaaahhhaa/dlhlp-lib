@@ -5,44 +5,17 @@ import torch.nn as nn
 from torchaudio.transforms import MelSpectrogram, Spectrogram
 
 
-class LogMelSpectrogram(nn.Module):
-    # 2021.08.07 Redundant, we used melgan's mel in wav_mel.py
-    # However this class can be used for user defined mel spectrogram
-    def __init__(
-        self,
-        sample_rate: int,
-        n_fft: int,
-        win_length: int,
-        hop_length: int,
-        f_min: float,
-        f_max: float,
-        n_mels: int,
-    ):
-        super().__init__()
-
-        self.sample_rate = sample_rate
-        self.n_fft = n_fft
-        self.win_length = win_length
-        self.hop_length = hop_length
-        self.f_min = f_min
-        self.f_max = f_max
-        self.n_mels = n_mels
-
-        self.melspectrogram = MelSpectrogram(
-            sample_rate=sample_rate,
-            n_fft=n_fft,
-            win_length=win_length,
-            hop_length=hop_length,
-            f_min=f_min,
-            f_max=f_max,
-            n_mels=n_mels,
-            power=1,
-            center=False,
-        )
-
+class LogMelSpectrogram(MelSpectrogram):
+    """
+    Log scale MelSpectrogram.
+    To match torch and librosa, you need to set
+        norm="slaney",
+        mel_scale="slaney"
+    when using this class (also torchaudio.transforms.MelSpectrogram!)
+    """
     def forward(self, wav_tensor: torch.Tensor) -> torch.Tensor:
         # 1. mel-spectrogram
-        mel_tensor = self.melspectrogram(wav_tensor)
+        mel_tensor = super().forward(wav_tensor)
 
         # 2. log mel-spectrogram
         log_mel_tensor = torch.log10(torch.clamp(mel_tensor, min=1e-5))
