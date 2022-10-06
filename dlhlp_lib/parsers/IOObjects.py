@@ -4,6 +4,7 @@ import pickle
 import librosa
 from scipy.io import wavfile
 import tgt
+import json
 
 from .. import Constants
 from .Interfaces import BaseIOObject
@@ -24,7 +25,7 @@ class NumpyIO(BaseIOObject):
 
 class PickleIO(BaseIOObject):
     def __init__(self):
-        self.extension = ".npy"
+        self.extension = ".pkl"
     
     def readfile(self, path):
         with open(path, 'rb') as f:
@@ -35,6 +36,22 @@ class PickleIO(BaseIOObject):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'wb') as f:
             pickle.dump(input, f)
+
+
+class JSONIO(BaseIOObject):
+    def __init__(self, encoding="utf-8"):
+        self.extension = ".json"
+        self._encoding = encoding
+    
+    def readfile(self, path):
+        with open(path, 'r', encoding=self._encoding) as f:
+            data = json.load(f)
+        return data
+
+    def savefile(self, input, path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w', encoding=self._encoding) as f:
+            json.dump(input, f, indent=4)
 
 
 class WavIO(BaseIOObject):

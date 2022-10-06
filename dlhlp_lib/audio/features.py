@@ -15,6 +15,7 @@ class LogMelSpectrogram(nn.Module):
         win_length: int,
         hop_length: int,
         f_min: float,
+        f_max: float,
         n_mels: int,
     ):
         super().__init__()
@@ -24,6 +25,7 @@ class LogMelSpectrogram(nn.Module):
         self.win_length = win_length
         self.hop_length = hop_length
         self.f_min = f_min
+        self.f_max = f_max
         self.n_mels = n_mels
 
         self.melspectrogram = MelSpectrogram(
@@ -32,6 +34,7 @@ class LogMelSpectrogram(nn.Module):
             win_length=win_length,
             hop_length=hop_length,
             f_min=f_min,
+            f_max=f_max,
             n_mels=n_mels,
             power=1,
             center=False,
