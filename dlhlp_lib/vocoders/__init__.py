@@ -1,3 +1,5 @@
+from typing import Type
+
 from .vocoders import *
 
 
@@ -7,5 +9,5 @@ VOCODERS = {
     "HifiGAN": HifiGAN, 
 }
 
-def get_vocoder(system_type: str) -> BaseVocoder:
+def get_vocoder(system_type: str) -> Type[BaseVocoder]:
     return VOCODERS[system_type]

@@ -4,12 +4,12 @@ import torch
 import torch.nn as nn
 import json
 import math
+from torchaudio.transforms import InverseMelScale
+from torchaudio.transforms import GriffinLim as TorchGriffinLim
 
 from dlhlp_lib.Constants import MAX_WAV_VALUE
 
 from ..audio import AUDIO_CONFIG
-from ..audio.stft import TacotronSTFT
-from ..audio.audio_processing import griffin_lim
 from . import hifigan
 
 
@@ -22,23 +22,36 @@ class BaseVocoder(nn.Module):
 
 
 class GriffinLim(BaseVocoder):
-    def __init__(self, stft: TacotronSTFT):
+    def __init__(self, n_iters=30):
         super().__init__()
-        self.stft = stft
+        self.mel2linear_spec = InverseMelScale(
+            n_stft=AUDIO_CONFIG["stft"]["filter_length"] // 2 + 1,
+            n_mels=AUDIO_CONFIG["mel"]["n_mel_channels"],
+            sample_rate=AUDIO_CONFIG["audio"]["sampling_rate"],
+            norm="slaney",
+            mel_scale="slaney"
+        )
+        self.linear_spec2wav = TorchGriffinLim(
+            n_fft=AUDIO_CONFIG["stft"]["filter_length"],
+            n_iter=n_iters,
+            win_length=AUDIO_CONFIG["stft"]["win_length"],
+            hop_length=AUDIO_CONFIG["stft"]["hop_length"],
+            power=1
+        )
 
-    def infer(self, mels, lengths=None, n_iters=30, *args, **kwargs):
-        # some numeric issue exists...
-        self.cpu()
-        wavs = []
+    def inverse(self, mels):
         with torch.no_grad():
-            for mel in mels:
-                mel = mel.cpu()
-                spectrogram = self.stft.mel2linear(mel)
-                wav = griffin_lim(spectrogram.unsqueeze(0), stft_fn=self.stft.stft_fn, n_iters=n_iters)
-                wav = torch.clip(wav, max=1, min=-1)
-                wav = (wav.numpy() * MAX_WAV_VALUE).astype("int16")
-                wavs.append(wav)
-        
+            specs = self.mel2linear_spec(mels)
+            wavs = self.linear_spec2wav(specs)
+            return wavs
+
+    def infer(self, mels, lengths=None, *args, **kwargs):
+        wavs = []
+        wavs = self.inverse(mels.cpu())    
+        wavs = torch.clip(wavs, max=1, min=-1)
+        wavs = (wavs.cpu().numpy() * MAX_WAV_VALUE).astype("int16")
+        wavs = [wav for wav in wavs]
+
         for i in range(len(mels)):
             if lengths is not None:
                 wavs[i] = wavs[i][: lengths[i]]
@@ -55,9 +68,9 @@ class MelGAN(BaseVocoder):
         self.vocoder.eval()
         self.cpu()
 
-    def inverse(self, mel):
+    def inverse(self, mels):
         with torch.no_grad():
-            return self.vocoder(mel).squeeze(1)
+            return self.vocoder(mels).squeeze(1)
 
     def infer(self, mels, lengths=None, *args, **kwargs):
         # wavs = self.inverse(mels / math.log(10))  compatible with stft framework only, deprecated
@@ -87,9 +100,9 @@ class HifiGAN(BaseVocoder):
         self.vocoder = vocoder
         self.vocoder.eval()
 
-    def inverse(self, mel):
+    def inverse(self, mels):
         with torch.no_grad():
-            return self.vocoder(mel).squeeze(1)
+            return self.vocoder(mels).squeeze(1)
 
     def infer(self, mels, lengths=None, *args, **kwargs):
         # wavs = self.inverse(mels) compatible with stft framework only, deprecated
