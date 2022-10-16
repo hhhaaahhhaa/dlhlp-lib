@@ -87,6 +87,7 @@ def trim_wav_by_segment(
     wav = wav_feat.read_from_query(query)
     segment = segment_feat.read_from_query(query)
 
+    wav = wav_normalization(wav)
     wav_trim_feat.save(wav[int(sr * segment[0][0]) : int(sr * segment[-1][1])], query)
 
 

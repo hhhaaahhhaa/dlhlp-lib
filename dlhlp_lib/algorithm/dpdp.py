@@ -1,6 +1,7 @@
 import numpy as np
+import torch
 from tqdm import tqdm
-from typing import List
+from typing import List, Optional
 import time
 
 from sklearn.cluster import KMeans
@@ -202,6 +203,26 @@ class DPDPSSLUnit(object):
         
         return foramtted_boundaries, label_tokens
 
+    def extract_hidden(self, wav_paths: List[str]) -> List[Optional[np.ndarray]]:
+        """
+        Extract hidden representations with s3prl extractor + postnet.
+        """
+        res = []
+        reprs, n_frames = self._extractor.extract_from_paths(wav_paths, norm=self._norm)  # B, L, *dim
+        reprs = self._postnet(reprs)
+        for wav_path, repr, n_frame in zip(wav_paths, reprs, n_frames):
+            sliced_repr = repr[:n_frame].clone()  # L, *dim
+            try:
+                assert not torch_exist_nan(sliced_repr)
+            except:
+                self.log("NaN in hidden representation:")
+                self.log(wav_path)
+                res.append(None)
+                continue
+            sliced_repr = sliced_repr.detach().cpu().numpy()
+            res.append(sliced_repr)
+        return res
+    
     def segment_by_dist(self, wav_path: str, lambd=35):
         repr, n_frame = self._extractor.extract_from_paths([wav_path], norm=self._norm) 
         repr = self._postnet(repr)

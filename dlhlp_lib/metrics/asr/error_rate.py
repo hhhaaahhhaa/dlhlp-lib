@@ -47,6 +47,10 @@ class FERCalculator(object):
         ref_seg_feat = data_parser.get_feature(ref_segment_featname)
         pred_phn_feat = data_parser.get_feature(pred_phoneme_featname)
         pred_seg_feat = data_parser.get_feature(pred_segment_featname)
+        ref_phn_feat.read_all()
+        ref_seg_feat.read_all()
+        pred_phn_feat.read_all()
+        pred_seg_feat.read_all()
 
         n_frames, correct = 0, 0
         ref_n_seg, pred_n_seg = 0, 0
@@ -100,6 +104,8 @@ class PERCalculator(object):
         ) -> Union[float, Dict]:
         ref_phn_feat = data_parser.get_feature(ref_phoneme_featname)
         pred_phn_feat = data_parser.get_feature(pred_phoneme_featname)
+        ref_phn_feat.read_all()
+        pred_phn_feat.read_all()
 
         wer_list = []
         substitutions, insertions, deletions = 0, 0, 0

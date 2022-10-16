@@ -11,8 +11,8 @@ class Feature(BaseFeature):
     Template class for single feature.
     """
     def __init__(self, name: str, root: str, parser: BaseQueryParser, io: BaseIOObject, enable_cache=False):
-        self.name = name
-        self.root = root
+        # self.name = name
+        # self.root = root
         self.query_parser = parser
         self.io = io
         self._data = None
@@ -64,7 +64,7 @@ class Feature(BaseFeature):
         self.io.savefile(input, path)
 
     def filename2rawpath(self, filename) -> str:
-        return f"{self.root}/{self.name}/{filename}{self.io.extension}"
+        return f"{self.query_parser.root}/{filename}{self.io.extension}"
     
     def log(self, msg):
-        print(f"[Feature ({self.root}/{self.name})]: ", msg)
+        print(f"[Feature ({self.query_parser.root})]: ", msg)

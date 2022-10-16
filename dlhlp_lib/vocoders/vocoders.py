@@ -86,14 +86,22 @@ class MelGAN(BaseVocoder):
 
 
 class HifiGAN(BaseVocoder):
-    def __init__(self):
+    def __init__(self, dirpath: str=None):
         super().__init__()
-        _current_dir = os.path.dirname(__file__)
-        with open(f"{_current_dir}/hifigan/config.json", "r") as f:
-            config = json.load(f)
-        config = hifigan.AttrDict(config)
-        vocoder = hifigan.Generator(config)
-        ckpt = torch.load(f"{_current_dir}/hifigan/generator_universal.pth.tar")
+        if dirpath is None:
+            _current_dir = os.path.dirname(__file__)
+            with open(f"{_current_dir}/hifigan/config.json", "r") as f:
+                config = json.load(f)
+            config = hifigan.AttrDict(config)
+            vocoder = hifigan.Generator(config)
+            ckpt = torch.load(f"{_current_dir}/hifigan/generator_universal.pth.tar")
+        else:
+            with open(f"{dirpath}/config.json", "r") as f:
+                config = json.load(f)
+            config = hifigan.AttrDict(config)
+            vocoder = hifigan.Generator(config)
+            ckpt = torch.load(f"{dirpath}/generator.ckpt")
+        
         vocoder.load_state_dict(ckpt["generator"])
         vocoder.remove_weight_norm()
 

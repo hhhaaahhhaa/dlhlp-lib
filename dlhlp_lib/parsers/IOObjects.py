@@ -25,7 +25,8 @@ class NumpyIO(BaseIOObject):
 
 class PickleIO(BaseIOObject):
     def __init__(self):
-        self.extension = ".pkl"
+        self.extension = ".npy"
+        # self.extension = ".pkl"
     
     def readfile(self, path):
         with open(path, 'rb') as f:
