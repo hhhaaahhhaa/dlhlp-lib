@@ -20,6 +20,7 @@ class S3PRLExtractor(pl.LightningModule):
         hubert_large_ll60k
         wav2vec2_large_ll60k
         wavlm_large_ll60k
+        wav2vec2_xlsr
     """
     def __init__(self, s3prl_name: str):
         super().__init__()
