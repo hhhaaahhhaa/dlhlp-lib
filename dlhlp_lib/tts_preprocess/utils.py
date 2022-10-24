@@ -1,3 +1,4 @@
+from typing import List
 import numpy as np
 from tgt.core import IntervalTier
 
@@ -43,6 +44,17 @@ def representation_average(representation, durations, pad=0):
             representation[i] = pad
         pos += d
     return representation[: len(durations)]
+
+
+def remove_outlier(values: List):
+    values = np.array(values)
+    p25 = np.percentile(values, 25)
+    p75 = np.percentile(values, 75)
+    lower = p25 - 1.5 * (p75 - p25)
+    upper = p75 + 1.5 * (p75 - p25)
+    normal_indices = np.logical_and(values > lower, values < upper)
+
+    return values[normal_indices]
  
 
 class ImapWrapper(object):

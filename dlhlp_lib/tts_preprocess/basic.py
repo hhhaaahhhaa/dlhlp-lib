@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from scipy.interpolate import interp1d
+from sklearn.preprocessing import StandardScaler
 from multiprocessing import Pool
 from tqdm import tqdm
 import resemblyzer
@@ -8,7 +9,7 @@ import resemblyzer
 from dlhlp_lib.audio import AUDIO_CONFIG
 from dlhlp_lib.parsers.Interfaces import BaseDataParser
 from dlhlp_lib.audio.features import Energy, LogMelSpectrogram, get_feature_from_wav, get_f0_from_wav
-from dlhlp_lib.tts_preprocess.utils import get_alignment, representation_average, ImapWrapper
+from dlhlp_lib.tts_preprocess.utils import *
 
 
 ENERGY_NN = Energy(
@@ -157,7 +158,7 @@ def wav_to_mel_energy_pitch(
     )  # (time, )
     mel = get_feature_from_wav(
         wav, feature_nn=MEL_NN
-    ) * np.log(10)  # (n_mels, time)
+    )  # (n_mels, time)
     energy = get_feature_from_wav(
         wav, feature_nn=ENERGY_NN
     )  # (time, )
@@ -419,3 +420,52 @@ def extract_spk_ref_mel_slices_from_wav_mp(
             for res in tqdm(pool.imap(ImapWrapper(extract_spk_ref_mel_slices_from_wav), tasks, chunksize=chunksize), total=n):
                 fail_cnt += 1 - res
     print("[extract_spk_ref_mel_slices_from_wav_mp]: Skipped: ", fail_cnt)
+
+
+def get_stats(
+    dataset: BaseDataParser,
+    pitch_featname: str,
+    energy_featname: str,
+    refresh: bool=False
+):
+    pitch_feat = dataset.get_feature(pitch_featname)
+    energy_feat = dataset.get_feature(energy_featname)
+
+    pitch_feat.read_all(refresh=refresh)
+    energy_feat.read_all(refresh=refresh)
+    all_pitches, all_energies = [], []
+    for k, v in pitch_feat._data.items():
+        for x in v:
+            all_pitches.append(x)
+    for k, v in energy_feat._data.items():
+        for x in v:
+            all_energies.append(x)
+
+    pitch_min, pitch_max = min(all_pitches), max(all_pitches)
+    energy_min, energy_max = min(all_energies), max(all_energies)
+
+    pitch_scaler = StandardScaler()
+    energy_scaler = StandardScaler()
+    pitch_scaler.partial_fit(remove_outlier(all_pitches).reshape((-1, 1)))
+    energy_scaler.partial_fit(remove_outlier(all_energies).reshape((-1, 1)))
+    pitch_mean = pitch_scaler.mean_[0]
+    pitch_std = pitch_scaler.scale_[0]
+    energy_mean = energy_scaler.mean_[0]
+    energy_std = energy_scaler.scale_[0]
+
+    stats = {
+        "pitch": [
+            float(pitch_min),
+            float(pitch_max),
+            float(pitch_mean),
+            float(pitch_std),
+        ],
+        "energy": [
+            float(energy_min),
+            float(energy_max),
+            float(energy_mean),
+            float(energy_std),
+        ],
+    }
+
+    return stats

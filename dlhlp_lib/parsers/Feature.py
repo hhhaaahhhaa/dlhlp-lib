@@ -10,9 +10,7 @@ class Feature(BaseFeature):
     """
     Template class for single feature.
     """
-    def __init__(self, name: str, root: str, parser: BaseQueryParser, io: BaseIOObject, enable_cache=False):
-        # self.name = name
-        # self.root = root
+    def __init__(self, parser: BaseQueryParser, io: BaseIOObject, enable_cache=False):
         self.query_parser = parser
         self.io = io
         self._data = None
