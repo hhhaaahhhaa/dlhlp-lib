@@ -3,11 +3,11 @@ import numpy as np
 from scipy.interpolate import interp1d
 from multiprocessing import Pool
 from tqdm import tqdm
+import resemblyzer
 
 from dlhlp_lib.audio import AUDIO_CONFIG
 from dlhlp_lib.parsers.Interfaces import BaseDataParser
 from dlhlp_lib.audio.features import Energy, LogMelSpectrogram, get_feature_from_wav, get_f0_from_wav
-from dlhlp_lib.audio.tools import wav_normalization
 from dlhlp_lib.tts_preprocess.utils import get_alignment, representation_average, ImapWrapper
 
 
@@ -87,7 +87,6 @@ def trim_wav_by_segment(
     wav = wav_feat.read_from_query(query)
     segment = segment_feat.read_from_query(query)
 
-    wav = wav_normalization(wav)
     wav_trim_feat.save(wav[int(sr * segment[0][0]) : int(sr * segment[-1][1])], query)
 
 
@@ -97,7 +96,7 @@ def trim_wav_by_segment_mp(
     segment_featname: str,
     wav_trim_featname: str,
     refresh: bool=False,
-    n_workers: int=1, chunksize: int=256,
+    n_workers: int=2, chunksize: int=256,
     ignore_errors: bool=False
 ) -> None:
     print("[trim_wav_by_segment_mp]:")
@@ -115,14 +114,18 @@ def trim_wav_by_segment_mp(
         segment_feat = dataset.get_feature(segment_featname)
         segment_feat.read_all(refresh=refresh)
         for i in tqdm(range(n)):
-            res = trim_wav_by_segment(
-                dataset, queries[i], sr,
-                wav_featname,
-                segment_featname,
-                wav_trim_featname,
-                ignore_errors
-            )
-            fail_cnt += 1 - res
+            try:
+                trim_wav_by_segment(
+                    dataset, queries[i], sr,
+                    wav_featname,
+                    segment_featname,
+                    wav_trim_featname
+                )
+            except:
+                if ignore_errors:
+                    fail_cnt += 1
+                else:
+                    raise
     else:
         with Pool(processes=n_workers) as pool:
             for res in tqdm(pool.imap(ImapWrapper(trim_wav_by_segment), tasks, chunksize=chunksize), total=n):
@@ -145,7 +148,7 @@ def wav_to_mel_energy_pitch(
     pitch_feat = dataset.get_feature(pitch_featname)
     interp_pitch_feat = dataset.get_feature(interp_pitch_featname)
 
-    wav = wav_normalization(wav_feat.read_from_query(query))
+    wav = wav_feat.read_from_query(query)
 
     pitch = get_f0_from_wav(
         wav,
@@ -154,7 +157,7 @@ def wav_to_mel_energy_pitch(
     )  # (time, )
     mel = get_feature_from_wav(
         wav, feature_nn=MEL_NN
-    )  # (n_mels, time)
+    ) * np.log(10)  # (n_mels, time)
     energy = get_feature_from_wav(
         wav, feature_nn=ENERGY_NN
     )  # (time, )
@@ -203,19 +206,23 @@ def wav_to_mel_energy_pitch_mp(
     fail_cnt =0
     if n_workers == 1:
         for i in tqdm(range(n)):
-            res = wav_to_mel_energy_pitch(
-                dataset, queries[i],
-                wav_featname,
-                mel_featname,
-                energy_featname,
-                pitch_featname,
-                interp_pitch_featname,
-                ignore_errors
-            )
-            fail_cnt += 1 - res
+            try:
+                wav_to_mel_energy_pitch(
+                    dataset, queries[i],
+                    wav_featname,
+                    mel_featname,
+                    energy_featname,
+                    pitch_featname,
+                    interp_pitch_featname
+                )
+            except:
+                if ignore_errors:
+                    fail_cnt += 1
+                else:
+                    raise
     else:
         with Pool(processes=n_workers) as pool:
-            for i in tqdm(pool.imap(ImapWrapper(wav_to_mel_energy_pitch), tasks, chunksize=chunksize), total=n):
+            for res in tqdm(pool.imap(ImapWrapper(wav_to_mel_energy_pitch), tasks, chunksize=chunksize), total=n):
                 fail_cnt += 1 - res
     print("[wav_to_mel_energy_pitch_mp]: Skipped: ", fail_cnt)
 
@@ -242,7 +249,7 @@ def segment2duration_mp(
     segment_featname: str, 
     duration_featname: str,
     refresh: bool=False,
-    n_workers=1, chunksize=256,
+    n_workers=os.cpu_count()//2, chunksize=256,
     ignore_errors: bool=False
 ) -> None:
     print("[segment2duration_mp]:")
@@ -259,13 +266,17 @@ def segment2duration_mp(
         segment_feat = dataset.get_feature(segment_featname)
         segment_feat.read_all(refresh=refresh)
         for i in tqdm(range(n)):
-            res = segment2duration(
-                dataset, queries[i], inv_frame_period,
-                segment_featname,
-                duration_featname,
-                ignore_errors
-            )
-            fail_cnt += 1- res
+            try:
+                segment2duration(
+                    dataset, queries[i], inv_frame_period,
+                    segment_featname,
+                    duration_featname
+                )
+            except:
+                if ignore_errors:
+                    fail_cnt += 1
+                else:
+                    raise
     else:
         with Pool(processes=n_workers) as pool:
             for res in tqdm(pool.imap(ImapWrapper(segment2duration), tasks, chunksize=chunksize), total=n):
@@ -304,7 +315,7 @@ def duration_avg_pitch_and_energy_mp(
     pitch_featname: str,
     energy_featname: str,
     refresh: bool=False,
-    n_workers: int=1, chunksize: int=256,
+    n_workers: int=os.cpu_count()//2, chunksize: int=256,
     ignore_errors: bool=False
 ) -> None:
     print("[duration_avg_pitch_and_energy_mp]:")
@@ -326,16 +337,85 @@ def duration_avg_pitch_and_energy_mp(
         pitch_feat.read_all(refresh=refresh)
         energy_feat.read_all(refresh=refresh)
         for i in tqdm(range(n)):
-            res = duration_avg_pitch_and_energy(
-                dataset, queries[i],
-                duration_featname,
-                pitch_featname,
-                energy_featname,
-                ignore_errors
-            )
-            fail_cnt += 1 - res
+            try:
+                duration_avg_pitch_and_energy(
+                    dataset, queries[i],
+                    duration_featname,
+                    pitch_featname,
+                    energy_featname
+                )
+            except:
+                if ignore_errors:
+                    fail_cnt += 1
+                else:
+                    raise
     else:
         with Pool(processes=n_workers) as pool:
-            for i in tqdm(pool.imap(ImapWrapper(duration_avg_pitch_and_energy), tasks, chunksize=chunksize), total=n):
-                fail_cnt += 1- res
-        print("[duration_avg_pitch_and_energy_mp]: Skipped: ", fail_cnt)
+            for res in tqdm(pool.imap(ImapWrapper(duration_avg_pitch_and_energy), tasks, chunksize=chunksize), total=n):
+                fail_cnt += 1 - res
+    print("[duration_avg_pitch_and_energy_mp]: Skipped: ", fail_cnt)
+
+
+def extract_spk_ref_mel_slices_from_wav(
+    dataset: BaseDataParser, query, sr: int,
+    wav_featname: str,
+    ref_featname: str
+) -> None:
+    wav_feat = dataset.get_feature(wav_featname)
+
+    ref_feat = dataset.get_feature(ref_featname)
+
+    wav = wav_feat.read_from_query(query)
+
+    wav = resemblyzer.preprocess_wav(wav, source_sr=sr)
+
+    # Compute where to split the utterance into partials and pad the waveform
+    # with zeros if the partial utterances cover a larger range.
+    wav_slices, mel_slices = resemblyzer.VoiceEncoder.compute_partial_slices(
+        len(wav), rate=1.3, min_coverage=0.75
+    )
+    max_wave_length = wav_slices[-1].stop
+    if max_wave_length >= len(wav):
+        wav = np.pad(wav, (0, max_wave_length - len(wav)), "constant")
+    # Split the utterance into partials and forward them through the model
+    spk_ref_mel = resemblyzer.wav_to_mel_spectrogram(wav)
+    spk_ref_mel_slices = [spk_ref_mel[s] for s in mel_slices]
+    
+    ref_feat.save(spk_ref_mel_slices, query)
+
+
+def extract_spk_ref_mel_slices_from_wav_mp(
+    dataset: BaseDataParser, queries, sr: int,
+    wav_featname: str,
+    ref_featname: str,
+    n_workers: int=4, chunksize: int=64,
+    ignore_errors: bool=False
+) -> None:
+    print("[extract_spk_ref_mel_slices_from_wav_mp]:")
+    n = len(queries)
+    tasks = list(zip(
+        [dataset] * n, queries, [sr] * n,
+        [wav_featname] * n,
+        [ref_featname] * n,
+        [ignore_errors] * n,
+    ))
+
+    fail_cnt = 0
+    if n_workers == 1:
+        for i in tqdm(range(n)):
+            try:
+                extract_spk_ref_mel_slices_from_wav(
+                    dataset, queries[i], sr,
+                    wav_featname,
+                    ref_featname
+                )
+            except:
+                if ignore_errors:
+                    fail_cnt += 1
+                else:
+                    raise
+    else:
+        with Pool(processes=n_workers) as pool:
+            for res in tqdm(pool.imap(ImapWrapper(extract_spk_ref_mel_slices_from_wav), tasks, chunksize=chunksize), total=n):
+                fail_cnt += 1 - res
+    print("[extract_spk_ref_mel_slices_from_wav_mp]: Skipped: ", fail_cnt)

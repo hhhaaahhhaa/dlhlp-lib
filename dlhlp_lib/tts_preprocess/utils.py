@@ -1,3 +1,4 @@
+import numpy as np
 from tgt.core import IntervalTier
 
 

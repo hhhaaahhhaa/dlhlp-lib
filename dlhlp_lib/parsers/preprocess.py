@@ -93,7 +93,7 @@ def imap_trim_wav_by_mfa_segment(task):
     trim_wav_by_mfa_segment(*task)
 
 
-def trim_wav_by_mfa_segment_mp(dataset, queries, sr, n_workers=1, chunksize=256, refresh=False):
+def trim_wav_by_mfa_segment_mp(dataset, queries, sr, n_workers=2, chunksize=256, refresh=False):
     """
     Multiprocessing does not help too much.
     """
