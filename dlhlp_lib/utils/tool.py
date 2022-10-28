@@ -10,3 +10,24 @@ def get_mask_from_lengths(lengths, max_len=None):
     mask = ids >= lengths.unsqueeze(1).expand(-1, max_len)
 
     return mask
+
+
+def segment2duration(segment, fp):
+    res = []
+    for (s, e) in segment:
+        res.append(
+            int(
+                round(round(e * 1 / fp, 4))  # avoid floating point numercial issue
+                - round(round(s * 1 / fp, 4))
+            )
+        )
+    return res
+
+
+def expand(seq, dur):
+    assert len(seq) == len(dur)
+    res = []
+    for (x, d) in zip(seq, dur):
+        if d > 0:
+            res.extend([x] * d)
+    return res

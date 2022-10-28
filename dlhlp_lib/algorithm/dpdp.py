@@ -224,9 +224,10 @@ class DPDPSSLUnit(object):
         return res
     
     def segment_by_dist(self, wav_path: str, lambd=35):
-        repr, n_frame = self._extractor.extract_from_paths([wav_path], norm=self._norm) 
-        repr = self._postnet(repr)
-        sliced_repr = repr[0].detach().cpu()  # L, dim
+        with torch.no_grad():
+            repr, n_frame = self._extractor.extract_from_paths([wav_path], norm=self._norm) 
+            repr = self._postnet(repr)
+            sliced_repr = repr[0].detach().cpu()  # L, dim
         try:
             assert not torch_exist_nan(sliced_repr)
         except:
@@ -293,6 +294,42 @@ class DPDPSSLUnit(object):
                 label_tokens_list.append(label_tokens)
         
         return foramtted_boundaries_list, label_tokens_list
+    
+    def log(self, msg):
+        print(f"[DPDP]: ", msg)
+
+
+class DPDPDecoder(object):
+    """
+    A more compact design for DPDP, view it as a "decoder algorithm".
+    """
+    def __init__(self, lambd: float=0.0) -> None:
+        self.lambd = lambd
+        self._pen = DPDPDecoder.default_pen
+        self.debug = False
+
+    @staticmethod
+    def default_pen(segment_length):
+        return 1 - segment_length
+
+    def set_penalize_function(self, func):
+        self._pen = func
+
+    def decode(self, scores: np.ndarray, fp=20):
+        boundaries, label_tokens = segment(scores, scores, self._pen, lambd=self.lambd)
+        if self.debug:
+            self.log(f"boundaries: {boundaries}")
+            self.log(f"label_tokens: {label_tokens}")
+            self.log(f"Num of segments = {len(label_tokens)}")
+            print()
+
+        foramtted_boundaries = []
+        st = 0.0
+        for b in boundaries:
+            foramtted_boundaries.append((st, b * fp / 1000))
+            st = b * fp / 1000
+        
+        return foramtted_boundaries, label_tokens
     
     def log(self, msg):
         print(f"[DPDP]: ", msg)

@@ -42,7 +42,13 @@ def textgrid2segment_and_phoneme(
     segment_feat = dataset.get_feature(segment_featname)
     phoneme_feat = dataset.get_feature(phoneme_featname)
 
-    tier = textgrid_feat.read_from_query(query).get_tier_by_name("phones")
+    tier_obj = textgrid_feat.read_from_query(query)
+    if tier_obj.has_tier("phones"):
+        tier = tier_obj.get_tier_by_name("phones")
+    elif tier_obj.has_tier("phoneme"): 
+        tier = textgrid_feat.read_from_query(query).get_tier_by_name("phoneme")
+    else:
+        raise ValueError("Can not find phoneme tiers...")
     phones, segments = get_alignment(tier)
 
     segment_feat.save(segments, query)
