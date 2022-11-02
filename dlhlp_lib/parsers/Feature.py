@@ -18,7 +18,7 @@ class Feature(BaseFeature):
 
     def read_all(self, refresh=False):
         if self._data is not None:  # cache already loaded
-            pass
+            return
         if not self._enable_cache:
             self.log("Cache not supported...")
             raise NotImplementedError
