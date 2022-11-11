@@ -90,11 +90,14 @@ class HifiGAN(BaseVocoder):
         super().__init__()
         if dirpath is None:
             _current_dir = os.path.dirname(__file__)
-            with open(f"{_current_dir}/hifigan/config.json", "r") as f:
+            # with open(f"{_current_dir}/hifigan/config.json", "r") as f:
+            #     config = json.load(f)
+            with open(f"{_current_dir}/hifigan/Universal/config.json", "r") as f:
                 config = json.load(f)
             config = hifigan.AttrDict(config)
             vocoder = hifigan.Generator(config)
-            ckpt = torch.load(f"{_current_dir}/hifigan/generator_universal.pth.tar")
+            # ckpt = torch.load(f"{_current_dir}/hifigan/generator_universal.pth.tar")
+            ckpt = torch.load(f"{_current_dir}/hifigan/Universal/generator.ckpt")
         else:
             with open(f"{dirpath}/config.json", "r") as f:
                 config = json.load(f)
@@ -114,7 +117,7 @@ class HifiGAN(BaseVocoder):
 
     def infer(self, mels, lengths=None, *args, **kwargs):
         # wavs = self.inverse(mels) compatible with stft framework only, deprecated
-        wavs = self.inverse(mels * math.log(10))
+        wavs = self.inverse(mels)
         wavs = torch.clip(wavs, max=1, min=-1)
         wavs = (wavs.cpu().numpy() * MAX_WAV_VALUE).astype("int16")
         wavs = [wav for wav in wavs]
