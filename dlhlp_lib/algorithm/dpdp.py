@@ -15,42 +15,47 @@ from dlhlp_lib.s3prl import S3PRLExtractor
 #   (https://arxiv.org/abs/2012.07551, INTERSPEECH 2021)
 # Author: Yuan Tseng (https://github.com/roger-tseng)
 def segment(reps, distance_array, pen, lambd=35):
-    alphas = [[0, None]]
+    assert lambd >= 0, "Negative lambd? What are u doing?"
+    if lambd > 0:
+        alphas = [[0, None]]
 
-    # Perform dynamic-programming-based segmentation
-    for t in range(1,reps.shape[0]+1):
+        # Perform dynamic-programming-based segmentation
+        for t in range(1,reps.shape[0]+1):
 
-        errors = []
-        closest_centers = []
-        
-        for segment_length in range(1,t+1):
+            errors = []
+            closest_centers = []
+            
+            for segment_length in range(1,t+1):
 
-            # array len = num of clusters
-            # ith element is sum of distance from the last segment_length tokens until Tth token to the ith cluster center
-            distance_subarray = distance_array[t-segment_length:t].sum(axis=0)
+                # array len = num of clusters
+                # ith element is sum of distance from the last segment_length tokens until Tth token to the ith cluster center
+                distance_subarray = distance_array[t-segment_length:t].sum(axis=0)
 
-            closest_center = distance_subarray.argmin()
-            error = alphas[t-segment_length][0] + distance_subarray.min() + lambd * pen(segment_length)
+                closest_center = distance_subarray.argmin()
+                error = alphas[t-segment_length][0] + distance_subarray.min() + lambd * pen(segment_length)
 
-            closest_centers.append(closest_center)
-            errors.append(error)
+                closest_centers.append(closest_center)
+                errors.append(error)
 
-        errors = np.array(errors)
-        alpha, a_min, closest = errors.min(), t-1-errors.argmin(), closest_centers[errors.argmin()]
-        alphas.append([alpha, a_min, closest])
+            errors = np.array(errors)
+            alpha, a_min, closest = errors.min(), t-1-errors.argmin(), closest_centers[errors.argmin()]
+            alphas.append([alpha, a_min, closest])
 
-    # Backtrack to find optimal boundary tokens and label
-    boundaries = []
-    label_tokens = []
-    tk = len(alphas)-1
-    while (tk!=0):
-        boundaries.append(tk)
-        label_tokens.append(alphas[tk][2])
-        tk = alphas[tk][1]  
-    boundaries.reverse()
-    label_tokens.reverse()
+        # Backtrack to find optimal boundary tokens and label
+        boundaries = []
+        label_tokens = []
+        tk = len(alphas)-1
+        while (tk!=0):
+            boundaries.append(tk)
+            label_tokens.append(alphas[tk][2])
+            tk = alphas[tk][1]  
+        boundaries.reverse()
+        label_tokens.reverse()
+    else:  # do lambd = 0 without dynamic programming for efficiency
+        label_tokens = distance_array.argmin(axis=1)
+        boundaries = list(range(1, reps.shape[0] + 1))
 
-    if lambd == 0:  # merge repeat tokens (when lambd=0 cosecutive tokens may repeat)
+        # merge repeat tokens (consecutive tokens may repeat)
         cur_token = None
         new_boundaries, new_label_tokens = [], []
         for i in range(len(boundaries)):
