@@ -1,6 +1,7 @@
 import numpy as np
+import torch
 from tqdm import tqdm
-from typing import List
+from typing import List, Optional
 import time
 
 from sklearn.cluster import KMeans
@@ -14,42 +15,47 @@ from dlhlp_lib.s3prl import S3PRLExtractor
 #   (https://arxiv.org/abs/2012.07551, INTERSPEECH 2021)
 # Author: Yuan Tseng (https://github.com/roger-tseng)
 def segment(reps, distance_array, pen, lambd=35):
-    alphas = [[0, None]]
+    assert lambd >= 0, "Negative lambd? What are u doing?"
+    if lambd > 0:
+        alphas = [[0, None]]
 
-    # Perform dynamic-programming-based segmentation
-    for t in range(1,reps.shape[0]+1):
+        # Perform dynamic-programming-based segmentation
+        for t in range(1,reps.shape[0]+1):
 
-        errors = []
-        closest_centers = []
-        
-        for segment_length in range(1,t+1):
+            errors = []
+            closest_centers = []
+            
+            for segment_length in range(1,t+1):
 
-            # array len = num of clusters
-            # ith element is sum of distance from the last segment_length tokens until Tth token to the ith cluster center
-            distance_subarray = distance_array[t-segment_length:t].sum(axis=0)
+                # array len = num of clusters
+                # ith element is sum of distance from the last segment_length tokens until Tth token to the ith cluster center
+                distance_subarray = distance_array[t-segment_length:t].sum(axis=0)
 
-            closest_center = distance_subarray.argmin()
-            error = alphas[t-segment_length][0] + distance_subarray.min() + lambd * pen(segment_length)
+                closest_center = distance_subarray.argmin()
+                error = alphas[t-segment_length][0] + distance_subarray.min() + lambd * pen(segment_length)
 
-            closest_centers.append(closest_center)
-            errors.append(error)
+                closest_centers.append(closest_center)
+                errors.append(error)
 
-        errors = np.array(errors)
-        alpha, a_min, closest = errors.min(), t-1-errors.argmin(), closest_centers[errors.argmin()]
-        alphas.append([alpha, a_min, closest])
+            errors = np.array(errors)
+            alpha, a_min, closest = errors.min(), t-1-errors.argmin(), closest_centers[errors.argmin()]
+            alphas.append([alpha, a_min, closest])
 
-    # Backtrack to find optimal boundary tokens and label
-    boundaries = []
-    label_tokens = []
-    tk = len(alphas)-1
-    while (tk!=0):
-        boundaries.append(tk)
-        label_tokens.append(alphas[tk][2])
-        tk = alphas[tk][1]  
-    boundaries.reverse()
-    label_tokens.reverse()
+        # Backtrack to find optimal boundary tokens and label
+        boundaries = []
+        label_tokens = []
+        tk = len(alphas)-1
+        while (tk!=0):
+            boundaries.append(tk)
+            label_tokens.append(alphas[tk][2])
+            tk = alphas[tk][1]  
+        boundaries.reverse()
+        label_tokens.reverse()
+    else:  # do lambd = 0 without dynamic programming for efficiency
+        label_tokens = distance_array.argmin(axis=1)
+        boundaries = list(range(1, reps.shape[0] + 1))
 
-    if lambd == 0:  # merge repeat tokens (when lambd=0 cosecutive tokens may repeat)
+        # merge repeat tokens (consecutive tokens may repeat)
         cur_token = None
         new_boundaries, new_label_tokens = [], []
         for i in range(len(boundaries)):
@@ -202,10 +208,31 @@ class DPDPSSLUnit(object):
         
         return foramtted_boundaries, label_tokens
 
+    def extract_hidden(self, wav_paths: List[str]) -> List[Optional[np.ndarray]]:
+        """
+        Extract hidden representations with s3prl extractor + postnet.
+        """
+        res = []
+        reprs, n_frames = self._extractor.extract_from_paths(wav_paths, norm=self._norm)  # B, L, *dim
+        reprs = self._postnet(reprs)
+        for wav_path, repr, n_frame in zip(wav_paths, reprs, n_frames):
+            sliced_repr = repr[:n_frame].clone()  # L, *dim
+            try:
+                assert not torch_exist_nan(sliced_repr)
+            except:
+                self.log("NaN in hidden representation:")
+                self.log(wav_path)
+                res.append(None)
+                continue
+            sliced_repr = sliced_repr.detach().cpu().numpy()
+            res.append(sliced_repr)
+        return res
+    
     def segment_by_dist(self, wav_path: str, lambd=35):
-        repr, n_frame = self._extractor.extract_from_paths([wav_path], norm=self._norm) 
-        repr = self._postnet(repr)
-        sliced_repr = repr[0].detach().cpu()  # L, dim
+        with torch.no_grad():
+            repr, n_frame = self._extractor.extract_from_paths([wav_path], norm=self._norm) 
+            repr = self._postnet(repr)
+            sliced_repr = repr[0].detach().cpu()  # L, dim
         try:
             assert not torch_exist_nan(sliced_repr)
         except:
@@ -272,6 +299,42 @@ class DPDPSSLUnit(object):
                 label_tokens_list.append(label_tokens)
         
         return foramtted_boundaries_list, label_tokens_list
+    
+    def log(self, msg):
+        print(f"[DPDP]: ", msg)
+
+
+class DPDPDecoder(object):
+    """
+    A more compact design for DPDP, view it as a "decoder algorithm".
+    """
+    def __init__(self, lambd: float=0.0) -> None:
+        self.lambd = lambd
+        self._pen = DPDPDecoder.default_pen
+        self.debug = False
+
+    @staticmethod
+    def default_pen(segment_length):
+        return 1 - segment_length
+
+    def set_penalize_function(self, func):
+        self._pen = func
+
+    def decode(self, scores: np.ndarray, fp=20):
+        boundaries, label_tokens = segment(scores, scores, self._pen, lambd=self.lambd)
+        if self.debug:
+            self.log(f"boundaries: {boundaries}")
+            self.log(f"label_tokens: {label_tokens}")
+            self.log(f"Num of segments = {len(label_tokens)}")
+            print()
+
+        foramtted_boundaries = []
+        st = 0.0
+        for b in boundaries:
+            foramtted_boundaries.append((st, b * fp / 1000))
+            st = b * fp / 1000
+        
+        return foramtted_boundaries, label_tokens
     
     def log(self, msg):
         print(f"[DPDP]: ", msg)

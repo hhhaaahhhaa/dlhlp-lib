@@ -1,3 +1,6 @@
+"""
+Deprecated file, will be replaced by tts_preprocess/ soon!
+"""
 from typing import List
 import os
 import numpy as np
@@ -11,7 +14,7 @@ from multiprocessing import Pool
 from tqdm import tqdm
 import time
 
-from UnsupSeg import ModelTag, load_model_from_tag
+# from UnsupSeg import ModelTag, load_model_from_tag
 
 from dlhlp_lib import audio
 
@@ -90,7 +93,7 @@ def imap_trim_wav_by_mfa_segment(task):
     trim_wav_by_mfa_segment(*task)
 
 
-def trim_wav_by_mfa_segment_mp(dataset, queries, sr, n_workers=1, chunksize=256, refresh=False):
+def trim_wav_by_mfa_segment_mp(dataset, queries, sr, n_workers=2, chunksize=256, refresh=False):
     """
     Multiprocessing does not help too much.
     """
@@ -311,29 +314,29 @@ def duration_avg_pitch_and_energy_mp(dataset, queries, featname,
 """
 No multiprocess version.
 """
-def wav_trim_16000_to_unsup_seg(dataset, queries):
-    print("wav_trim_16000_to_unsup_seg")
-    wav_feat = getattr(dataset, "wav_trim_16000")
+# def wav_trim_16000_to_unsup_seg(dataset, queries):
+#     print("wav_trim_16000_to_unsup_seg")
+#     wav_feat = getattr(dataset, "wav_trim_16000")
 
-    segment_feat = getattr(dataset, "unsup_segment")
+#     segment_feat = getattr(dataset, "unsup_segment")
 
-    model = load_model_from_tag(ModelTag.BUCKEYE)
+#     model = load_model_from_tag(ModelTag.BUCKEYE)
 
-    for query in tqdm(queries):
-        try:
-            wav = wav_feat.read_from_query(query)
-            boundaries = model.predict(wav)
+#     for query in tqdm(queries):
+#         try:
+#             wav = wav_feat.read_from_query(query)
+#             boundaries = model.predict(wav)
 
-            segment = []
-            if boundaries[0] != 0:
-                segment.append((0, boundaries[0]))
-            for i in range(len(boundaries) - 1):
-                segment.append((boundaries[i], boundaries[i + 1]))
-            if boundaries[-1] != len(wav) / 16000:
-                segment.append((boundaries[-1], len(wav) / 16000))
-            segment_feat.save(segment, query)
-        except:
-            print(query)
+#             segment = []
+#             if boundaries[0] != 0:
+#                 segment.append((0, boundaries[0]))
+#             for i in range(len(boundaries) - 1):
+#                 segment.append((boundaries[i], boundaries[i + 1]))
+#             if boundaries[-1] != len(wav) / 16000:
+#                 segment.append((boundaries[-1], len(wav) / 16000))
+#             segment_feat.save(segment, query)
+#         except:
+#             print(query)
 
 
 def get_stats(dataset, refresh=False):

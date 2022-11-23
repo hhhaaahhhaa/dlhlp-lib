@@ -24,9 +24,12 @@ class SegmentationEvaluator(object):
         # Double cursor algorithm, linear time complexity.
         tp, fn, fp = 0, 0, 0
         for query in tqdm(queries):
-            ref_segment = ref_segment_feat.read_from_query(query)
-            pred_segment = pred_segment_feat.read_from_query(query)
-            ref_len, pred_len = len(ref_segment), len(pred_segment)
+            try:
+                ref_segment = ref_segment_feat.read_from_query(query)
+                pred_segment = pred_segment_feat.read_from_query(query)
+                ref_len, pred_len = len(ref_segment), len(pred_segment)
+            except:
+                continue
             
             ref_pos, pred_pos = 0, 0
             ref_offset, pred_offset = ref_segment[0][0], pred_segment[0][0]  # segment may not start from time 0 due to trimming.

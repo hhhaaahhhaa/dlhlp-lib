@@ -12,8 +12,8 @@ def segment2duration(segment, fp):
     for (s, e) in segment:
         res.append(
             int(
-                np.round(e * 1 / fp)
-                - np.round(s * 1 / fp)
+                round(round(e * 1 / fp, 4))
+                - round(round(s * 1 / fp, 4))
             )
         )
     return res
@@ -47,14 +47,21 @@ class FERCalculator(object):
         ref_seg_feat = data_parser.get_feature(ref_segment_featname)
         pred_phn_feat = data_parser.get_feature(pred_phoneme_featname)
         pred_seg_feat = data_parser.get_feature(pred_segment_featname)
+        ref_phn_feat.read_all()
+        ref_seg_feat.read_all()
+        pred_phn_feat.read_all()
+        pred_seg_feat.read_all()
 
         n_frames, correct = 0, 0
         ref_n_seg, pred_n_seg = 0, 0
         for query in tqdm(queries):
-            ref_phoneme = ref_phn_feat.read_from_query(query).strip().split(" ")
-            ref_segment = ref_seg_feat.read_from_query(query)
-            pred_phoneme = pred_phn_feat.read_from_query(query).strip().split(" ")
-            pred_segment = pred_seg_feat.read_from_query(query)
+            try:
+                ref_phoneme = ref_phn_feat.read_from_query(query).strip().split(" ")
+                ref_segment = ref_seg_feat.read_from_query(query)
+                pred_phoneme = pred_phn_feat.read_from_query(query).strip().split(" ")
+                pred_segment = pred_seg_feat.read_from_query(query)
+            except:
+                continue
 
             ref_n_seg += len(ref_phoneme)
             pred_n_seg += len(pred_phoneme)
@@ -97,12 +104,17 @@ class PERCalculator(object):
         ) -> Union[float, Dict]:
         ref_phn_feat = data_parser.get_feature(ref_phoneme_featname)
         pred_phn_feat = data_parser.get_feature(pred_phoneme_featname)
+        ref_phn_feat.read_all()
+        pred_phn_feat.read_all()
 
         wer_list = []
         substitutions, insertions, deletions = 0, 0, 0
         for query in tqdm(queries):
-            ref_phoneme = ref_phn_feat.read_from_query(query).strip().split(" ")
-            pred_phoneme = pred_phn_feat.read_from_query(query).strip().split(" ")
+            try:
+                ref_phoneme = ref_phn_feat.read_from_query(query).strip().split(" ")
+                pred_phoneme = pred_phn_feat.read_from_query(query).strip().split(" ")
+            except:
+                continue
 
             ref_sentence = " ".join([symbol_ref2unify[p] for p in ref_phoneme])
             pred_sentence = " ".join([symbol_pred2unify[p] for p in pred_phoneme])
