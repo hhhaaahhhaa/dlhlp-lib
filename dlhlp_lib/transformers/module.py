@@ -179,7 +179,7 @@ class TransformerDecoderBlock():
         return self.dropout3(x)
 
 
-class CodeformerBlock():
+class CodeformerBlock(nn.Module):
     """
     Replace MultiHeadAttention with CodebookAttention in TransformerEncoderBlock.
     """

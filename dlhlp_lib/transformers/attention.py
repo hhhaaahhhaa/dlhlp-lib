@@ -26,7 +26,8 @@ class CodebookAttention(nn.Module):
         B = query.size(0)
         return self.attn(
             query, 
-            self.keys.expand(B, 1, 1),
-            self.codes.expand(B, 1, 1),
-            need_weights=need_weights
+            self.keys.unsqueeze(0).expand(B, -1, -1),
+            self.codes.unsqueeze(0).expand(B, -1, -1),
+            need_weights=need_weights,
+            average_attn_weights=False
         )

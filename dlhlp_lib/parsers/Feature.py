@@ -25,17 +25,23 @@ class Feature(BaseFeature):
         cache_path = self.query_parser.get_cache()
         if not os.path.isfile(cache_path) or refresh:
             self.log("Generating cache...")
-            data = {}
-            filenames = self.query_parser.get_all(extension=self.io.extension)
-            for filename in tqdm(filenames):
-                data[filename] = self.read_from_filename(filename)
-            with open(cache_path, 'wb') as f:
-                pickle.dump(data, f)
-            self._data = data
-        else:
-            self.log("Loading cache...")
-            with open(cache_path, 'rb') as f:
-                self._data = pickle.load(f)
+            self.build_cache()
+        
+        self.log("Loading cache...")
+        with open(cache_path, 'rb') as f:
+            self._data = pickle.load(f)
+    
+    def build_cache(self):
+        cache_path = self.query_parser.get_cache()
+        data = {}
+        filenames = self.query_parser.get_all(extension=self.io.extension)
+        for filename in tqdm(filenames):
+            data[filename] = self.read_from_filename(filename)
+        with open(cache_path, 'wb') as f:
+            pickle.dump(data, f)
+
+    def clear_cache(self):
+        self._data = None
 
     def read_filename(self, query, raw=False) -> str:
         filenames = self.read_filenames(query, raw=raw)
