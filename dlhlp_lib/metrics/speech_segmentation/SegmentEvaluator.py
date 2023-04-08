@@ -20,6 +20,8 @@ class SegmentationEvaluator(object):
         ) -> Dict[str, float]:
         ref_segment_feat = data_parser.get_feature(ref_segment_featname)
         pred_segment_feat = data_parser.get_feature(pred_segment_featname)
+        ref_segment_feat.read_all()
+        pred_segment_feat.read_all()
 
         # Double cursor algorithm, linear time complexity.
         tp, fn, fp = 0, 0, 0
@@ -28,11 +30,10 @@ class SegmentationEvaluator(object):
                 ref_segment = ref_segment_feat.read_from_query(query)
                 pred_segment = pred_segment_feat.read_from_query(query)
                 ref_len, pred_len = len(ref_segment), len(pred_segment)
+                ref_pos, pred_pos = 0, 0
+                ref_offset, pred_offset = ref_segment[0][0], pred_segment[0][0]  # segment may not start from time 0 due to trimming.
             except:
                 continue
-            
-            ref_pos, pred_pos = 0, 0
-            ref_offset, pred_offset = ref_segment[0][0], pred_segment[0][0]  # segment may not start from time 0 due to trimming.
             while 1:
                 if ref_pos == ref_len:
                     fp += pred_len - pred_pos

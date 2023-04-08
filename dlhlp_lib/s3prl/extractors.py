@@ -29,6 +29,25 @@ class S3PRLExtractor(pl.LightningModule):
         self.eval()
 
         self._fp = 20  # Currently all supported ssl models use 20ms window
+        self._init_info()
+    
+    def _init_info(self):
+        if self.name in [
+            "hubert",
+            "wav2vec2",
+            "wavlm",
+        ]:
+            self.dim = 768
+            self.layers = 13
+        elif self.name in [
+            "hubert_large_ll60k",
+            "wav2vec2_large_ll60k",
+            "wavlm_large_ll60k",
+            "wav2vec2_xlsr"
+        ]
+            self.dim = 1024
+            self.n_layers = 25
+        self.fp_milliseconds = 20  # Currently all supported ssl models use 20ms window
 
     def extract_from_paths(self, wav_paths: Union[str, List[str]], norm=False) -> Tuple[torch.FloatTensor, List[int]]:
         """
