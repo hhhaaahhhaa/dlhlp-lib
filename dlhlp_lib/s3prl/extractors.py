@@ -44,7 +44,7 @@ class S3PRLExtractor(pl.LightningModule):
             "wav2vec2_large_ll60k",
             "wavlm_large_ll60k",
             "wav2vec2_xlsr"
-        ]
+        ]:
             self.dim = 1024
             self.n_layers = 25
         self.fp_milliseconds = 20  # Currently all supported ssl models use 20ms window
