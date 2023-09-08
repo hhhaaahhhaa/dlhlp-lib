@@ -160,7 +160,40 @@ class Objective(nn.Module):
         return costs, tokens
 
 
-class DPDPObjective(Objective):
+
+class DistanceObjective(Objective):
+    def __init__(self, lamb=0) -> None:
+        super().__init__()
+        self.lamb = lamb
+
+    def pen(self, seg_lengths):
+        return self.lamb * (1 - seg_lengths) 
+
+    def core(self, reps, rep_table, reference, mask):
+        """
+        Args:
+            reps: Distance array with shape (B, T, T, K)
+        Return loss with shape (B, t, K)
+        """
+        device = reps.device
+        t = mask.shape[0]
+
+        x = rep_table
+        l2_loss = torch.sum(x * ~mask.view(1, t, t, 1), dim=2)  # B, t, K
+        # print(rep_table)
+        # print(centers)
+        # print(l2_loss, l2_loss.shape)
+        seg_lengths = torch.arange(t).float().to(device) + 1
+        seg_loss = self.pen(seg_lengths)
+        loss = l2_loss + seg_loss.view(1, t, 1)  # B, t, K
+
+        if "unused_ids" in reference:
+            loss[:, :, reference["unused_ids"]] = float("inf")
+
+        return loss
+
+
+class ClusterObjective(Objective):
     """
     Objective from paper:
     Towards unsupervised phone and word segmentation using self-supervised 
@@ -175,10 +208,11 @@ class DPDPObjective(Objective):
 
     def core(self, reps, rep_table, reference, mask):
         """
+        Args:
+            reps: Representation with shape (B, T, T, *dim)
         Return loss with shape (B, t, K)
         """
         device = reps.device
-        B, T, *dims = reps.shape
         t = mask.shape[0]
         centers = reference["centers"]  # K, dims
         
@@ -200,7 +234,7 @@ class DPDPObjective(Objective):
 
 class FSCLOrigObjective(Objective):
     """
-    Similar to DPDPObjective but we first average segment features and pass then through codebook before
+    Similar to ClusterObjective but we first average segment features and pass then through codebook before
     matching centers with L2 loss. Latent space is now perfectly matched!
     """
     def __init__(self, lamb=0) -> None:
@@ -239,7 +273,7 @@ if __name__ == "__main__":
     import random
     random.seed(0)
 
-    obj = DPDPObjective(lamb=0)
+    obj = ClusterObjective(lamb=0)
     obj2 =FSCLOrigObjective(lamb=0)
     segmenter = DPSegmenter(obj2, max_segment_length=4)
 

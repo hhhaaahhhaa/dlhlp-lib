@@ -3,10 +3,12 @@ Functional version for tts_preprocess
 """
 import os
 import numpy as np
+import torch
 from scipy.interpolate import interp1d
 import resemblyzer
 import tgt
 from typing import Tuple, List
+import pyworld as pw
 
 from dlhlp_lib.audio import AUDIO_CONFIG
 from dlhlp_lib.audio.features import Energy, LogMelSpectrogram, get_feature_from_wav, get_f0_from_wav
@@ -54,6 +56,54 @@ def trim_wav_by_segment(
     return wav[int(sr * segment[0][0]) : int(sr * segment[-1][1])]
 
 
+def wav_to_mel(
+    wav: np.ndarray,
+    converter: LogMelSpectrogram
+) -> np.ndarray:
+    wav = torch.tensor(wav).unsqueeze(0)
+    with torch.no_grad():
+        mel = converter(wav).squeeze(0)
+    return mel.numpy().astype(np.float32)
+
+
+def wav_to_energy(
+    wav: np.ndarray,
+    converter: Energy
+) -> np.ndarray:
+    wav = torch.tensor(wav).unsqueeze(0)
+    with torch.no_grad():
+        energy = converter(wav).squeeze(0)
+    return energy.numpy().astype(np.float32)
+
+
+def wav_to_pitch(
+    wav: np.ndarray,
+    sample_rate: int,
+    hop_length: int
+) -> Tuple[np.ndarray, np.ndarray]:
+    f0, t = pw.dio(
+        wav.astype(np.float64),
+        sample_rate,
+        frame_period=hop_length / sample_rate * 1000,
+    )
+    pitch = pw.stonemask(wav.astype(np.float64), f0, t, sample_rate).astype(np.float32)
+
+    # interpolate
+    nonzero_ids = np.where(pitch != 0)[0]
+    interp_fn = interp1d(
+        nonzero_ids,
+        pitch[nonzero_ids],
+        fill_value=(pitch[nonzero_ids[0]], pitch[nonzero_ids[-1]]),
+        bounds_error=False,
+    )
+    interp_pitch = interp_fn(np.arange(0, len(pitch)))
+
+    if np.sum(pitch != 0) <= 1:
+        raise ValueError("Zero pitch detected")
+
+    return pitch, interp_pitch
+
+
 def wav_to_mel_energy_pitch(
     wav: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -83,16 +133,6 @@ def wav_to_mel_energy_pitch(
         raise ValueError("Zero pitch detected")
 
     return mel, energy, pitch, interp_pitch
-
-
-def segment2duration(
-    segment: List[Tuple[float, float]],
-    inv_frame_period: float,
-) -> List[int]:
-    durations = []
-    for (s, e) in segment:
-        durations.append(int(np.round(e * inv_frame_period) - np.round(s * inv_frame_period)))
-    return durations
 
 
 def extract_spk_ref_mel_slices_from_wav(

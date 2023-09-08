@@ -1,4 +1,5 @@
 import torch
+from typing import List, Tuple
 
 
 def get_mask_from_lengths(lengths, max_len=None, pad_to_multiple=1):
@@ -18,16 +19,19 @@ def get_mask_from_lengths(lengths, max_len=None, pad_to_multiple=1):
     return mask
 
 
-def segment2duration(segment, fp):
-    res = []
+def segment2duration(
+    segment: List[Tuple[float, float]],
+    fp: float,
+) -> List[int]:
+    durations = []
     for (s, e) in segment:
-        res.append(
+        durations.append(
             int(
                 round(round(e * 1 / fp, 4))  # avoid floating point numercial issue
                 - round(round(s * 1 / fp, 4))
             )
         )
-    return res
+    return durations
 
 
 def expand(seq, dur):

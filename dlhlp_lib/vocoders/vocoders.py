@@ -116,8 +116,7 @@ class HifiGAN(BaseVocoder):
             return self.vocoder(mels).squeeze(1)
 
     def infer(self, mels, lengths=None, *args, **kwargs):
-        # wavs = self.inverse(mels) compatible with stft framework only, deprecated
-        wavs = self.inverse(mels)
+        wavs = self.inverse(mels / math.log(10))
         wavs = torch.clip(wavs, max=1, min=-1)
         wavs = (wavs.cpu().numpy() * MAX_WAV_VALUE).astype("int16")
         wavs = [wav for wav in wavs]

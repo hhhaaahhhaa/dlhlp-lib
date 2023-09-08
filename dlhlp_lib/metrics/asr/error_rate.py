@@ -1,6 +1,6 @@
 import numpy as np
 from tqdm import tqdm
-from typing import Dict, Union, List
+from typing import Dict, Union, List, Optional
 import jiwer
 from jiwer.transformations import wer_default
 
@@ -24,7 +24,8 @@ class FERCalculator(object):
             pred_phoneme_featname: str, pred_segment_featname: str,
             symbol_ref2unify: Dict, symbol_pred2unify: Dict,
             fp: float,
-            confidence_featname: str=None, confidence_thresholds: List[float]=[0.0]
+            confidence_featname: Optional[str]=None, confidence_thresholds: Optional[List[float]]=None,
+            avg=False
         ) -> float:
         ref_phn_feat = data_parser.get_feature(ref_phoneme_featname)
         ref_seg_feat = data_parser.get_feature(ref_segment_featname)
@@ -61,8 +62,6 @@ class FERCalculator(object):
                 padding = [pred_seq[-1]] * (-diff)
                 pred_seq.extend(padding)
             assert len(pred_seq) == len(ref_seq)
-
-            # assert len(ref_seq) >= len(pred_seq)  #TODO: Pad everything to avoid length problems
             for (x1, x2) in zip(ref_seq, pred_seq):
                 results.append(int(symbol_ref2unify[x1] == symbol_pred2unify[x2]))
 
@@ -72,6 +71,12 @@ class FERCalculator(object):
                 assert mat.shape[0] == len(pred_phoneme)
                 confidence = np.max(mat, axis=1)
                 confidence_seq = expand(confidence.tolist(), pred_duration)
+
+                # sentence level reduction
+                if avg:
+                    avg = sum(confidence_seq) / len(confidence_seq)
+                    confidence_seq = [avg] * len(confidence_seq)
+
                 if diff >= 0:
                     confidence_seq = confidence_seq[:len(ref_seq)]
                 else:
@@ -84,23 +89,20 @@ class FERCalculator(object):
 
         res = {
             "n_frames": len(results),
-            "results": []
         }
         results = np.array(results)
         confidences = np.array(confidences)
-        for threshold in confidence_thresholds:
-            activated = np.sum(confidences >= threshold)
-            matched = np.sum(results[confidences >= threshold])
-            # print(f"Threshold {threshold}:")
-            # print(f"Activated: {activated}/{n_frames} = {activated / n_frames * 100:.2f}%")
-            # print(f"Accuracy: {matched}/{activated} = {matched / activated * 100:.2f}%")
-            # print("")
-            res["results"].append((threshold, matched, activated))
-
-        facc = res["results"][0][1] / res["n_frames"]
+        res["correct"] = np.sum(results)
+        facc = np.sum(results) / res["n_frames"]
         fer = 1 - facc
+        if confidence_thresholds is not None:
+            res["results"] = []
+            for threshold in confidence_thresholds:
+                activated = np.sum(confidences >= threshold)
+                matched = np.sum(results[confidences >= threshold])
+                res["results"].append((threshold, matched, activated))
 
-        return fer, res
+        return res
 
 
 class PERCalculator(object):

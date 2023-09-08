@@ -36,6 +36,11 @@ def get_alignment(tier_phone: IntervalTier):
 
 def representation_average(representation, durations, pad=0):
     pos = 0
+    n_l = sum(durations)
+    if len(representation) < n_l:
+        tmp = np.ones(n_l) * representation[-1]
+        tmp[:len(representation)] = representation
+        representation = tmp
     for i, d in enumerate(durations):
         if d > 0:
             representation[i] = np.mean(
@@ -61,15 +66,15 @@ class ImapWrapper(object):
     """
     Function object wrapper.
     """
-    def __init__(self, func) -> None:
+    def __init__(self, func, ignore_errors=False) -> None:
         self.f = func
+        self.ignore_errors = ignore_errors
     
     def __call__(self, task) -> bool:
-        *args, ignore_errors = task
         try:
-            self.f(*args)
+            self.f(*task)
         except:
-            if ignore_errors:
+            if self.ignore_errors:
                 return False
             raise
         return True

@@ -439,21 +439,33 @@ def get_stats(
 
     pitch_feat.read_all(refresh=refresh)
     energy_feat.read_all(refresh=refresh)
+    pitch_scaler = StandardScaler()
+    energy_scaler = StandardScaler()
     all_pitches, all_energies = [], []
     for k, v in pitch_feat._data.items():
+        vv = remove_outlier(v)
+        if len(vv) > 0:
+            pitch_scaler.partial_fit(vv.reshape((-1, 1)))
+        else:
+            print(v)
         for x in v:
             all_pitches.append(x)
     for k, v in energy_feat._data.items():
+        vv = remove_outlier(v)
+        if len(vv) > 0:
+            energy_scaler.partial_fit(vv.reshape((-1, 1)))
+        else:
+            print(v)
         for x in v:
             all_energies.append(x)
 
     pitch_min, pitch_max = min(all_pitches), max(all_pitches)
     energy_min, energy_max = min(all_energies), max(all_energies)
 
-    pitch_scaler = StandardScaler()
-    energy_scaler = StandardScaler()
-    pitch_scaler.partial_fit(remove_outlier(all_pitches).reshape((-1, 1)))
-    energy_scaler.partial_fit(remove_outlier(all_energies).reshape((-1, 1)))
+    # pitch_scaler = StandardScaler()
+    # energy_scaler = StandardScaler()
+    # pitch_scaler.partial_fit(remove_outlier(all_pitches).reshape((-1, 1)))
+    # energy_scaler.partial_fit(remove_outlier(all_energies).reshape((-1, 1)))
     pitch_mean = pitch_scaler.mean_[0]
     pitch_std = pitch_scaler.scale_[0]
     energy_mean = energy_scaler.mean_[0]

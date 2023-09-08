@@ -24,7 +24,6 @@ class Feature(BaseFeature):
             raise NotImplementedError
         cache_path = self.query_parser.get_cache()
         if not os.path.isfile(cache_path) or refresh:
-            self.log("Generating cache...")
             self.build_cache()
         
         self.log("Loading cache...")
@@ -32,6 +31,7 @@ class Feature(BaseFeature):
             self._data = pickle.load(f)
     
     def build_cache(self):
+        self.log("Generating cache...")
         cache_path = self.query_parser.get_cache()
         data = {}
         filenames = self.query_parser.get_all(extension=self.io.extension)

@@ -26,10 +26,12 @@ class S3PRLExtractor(pl.LightningModule):
         super().__init__()
         self.name = s3prl_name
         self._model = getattr(hub, s3prl_name)()
-        self.eval()
 
         self._fp = 20  # Currently all supported ssl models use 20ms window
         self._init_info()
+
+    def set_model(self, model):  # Custom UpstreamBase model
+        self._model = model
     
     def _init_info(self):
         if self.name in [
@@ -38,7 +40,7 @@ class S3PRLExtractor(pl.LightningModule):
             "wavlm",
         ]:
             self.dim = 768
-            self.layers = 13
+            self.n_layers = 13
         elif self.name in [
             "hubert_large_ll60k",
             "wav2vec2_large_ll60k",
