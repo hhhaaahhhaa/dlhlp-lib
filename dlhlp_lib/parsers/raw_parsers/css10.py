@@ -8,7 +8,10 @@ import pprint
 class CSS10Instance(object):
     """
     CSS10Instance example:
-        
+        {'id': 'achtgesichterambiwasse_0005',
+        'text': 'und als ginge nur ihr Schatten mit der Dienerin und der '
+                'Papierlaterne den Weg zu den Schatten.',
+        'wav_path': '/mnt/d/Data/CSS10/german/achtgesichterambiwasse/achtgesichterambiwasse_0005.wav'}
     """
 
     id: str
@@ -31,7 +34,7 @@ class CSS10RawParser(object):
         self.lang = str(self.root).split('/')[-1]
 
         _current_dir = os.path.dirname(__file__)
-        os.makedirs(f"{_current_dir}/_cache", exist_ok=True)
+        os.makedirs(f"{_current_dir}/_cache/css10", exist_ok=True)
         self._cache_path = f"{_current_dir}/_cache/css10/{self.lang}.pkl"
         self._load()
 
