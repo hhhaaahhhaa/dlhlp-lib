@@ -5,3 +5,4 @@ from .libritts import *
 from .ljspeech import *
 from .csmsc import *
 from .css10 import *
+from .m_ailabs import *
