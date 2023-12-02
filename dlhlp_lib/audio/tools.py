@@ -40,4 +40,7 @@ def inv_mel_spec(mel, out_filename, _stft: TacotronSTFT, griffin_iters=60):
 
 
 def wav_normalization(wav: np.array) -> np.array:
-    return wav / max(abs(wav))
+    denom = max(abs(wav))
+    if denom == 0 or np.isnan(denom):
+        raise ValueError
+    return wav / denom

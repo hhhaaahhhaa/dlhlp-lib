@@ -5,6 +5,23 @@ from typing import List
 from .Interfaces import BaseQueryParser
 
 
+class QueryParser(BaseQueryParser):
+    """
+    [root]/[basename][extension]
+    """
+    def __init__(self, root):
+        super().__init__(root)
+    
+    def get(self, query) -> List[str]:
+        return [query['basename']]
+
+    def get_all(self, extension) -> List[str]:
+        return [os.path.splitext(os.path.basename(x))[0] for x in glob.glob(f"{self.root}/*{extension}")]
+
+    def get_cache(self) -> str:
+        return f"{self.root}/cache.pickle"
+
+
 class SFQueryParser(BaseQueryParser):
     """
     [root]/[spk]-[basename][extension]
