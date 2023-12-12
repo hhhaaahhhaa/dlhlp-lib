@@ -22,10 +22,12 @@ class S3PRLExtractor(pl.LightningModule):
         wavlm_large_ll60k
         wav2vec2_xlsr
     """
-    def __init__(self, s3prl_name: str):
+    def __init__(self, s3prl_name: str, custom=False):
         super().__init__()
         self.name = s3prl_name
-        self._model = getattr(hub, s3prl_name)()
+        self._model = None
+        if not custom:
+            self._model = getattr(hub, s3prl_name)()
 
         self._fp = 20  # Currently all supported ssl models use 20ms window
         self._init_info()
@@ -112,6 +114,7 @@ class S3PRLExtractor(pl.LightningModule):
         return representation, n_frames
 
     def _extract(self, wavs, norm=False):
+        assert self._model is not None, "Currently in custom mode but does not set any model yet, please call set_model() first."
         if not self.training:
             with torch.no_grad():
                 representation = self._model(wavs)
