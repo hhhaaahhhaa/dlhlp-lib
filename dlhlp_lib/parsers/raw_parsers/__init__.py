@@ -11,3 +11,4 @@ from .voxceleb import *
 
 from .fma_music import *
 from .vocalset import *
+from .urbansound8k import *
