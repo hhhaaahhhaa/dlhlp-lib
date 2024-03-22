@@ -1,5 +1,20 @@
-from typing import List
+from typing import List, Any
 import random
+
+
+class Queue(object):
+    """ Easy implementation of queue, use q.data to access all data. """
+
+    data: list
+
+    def __init__(self, max_size: int=100) -> None:
+        self.max_size = max_size
+        self.data = []
+
+    def update(self, x):
+        self.data.append(x)
+        if len(self.data) > self.max_size:
+            self.data.pop(0)
 
 
 class DataPool(object):
